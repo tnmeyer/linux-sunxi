@@ -1,48 +1,13 @@
 #!/bin/bash
-set -e
-
-PLATFORM=""
-MODULE=""
-
-show_help()
-{
-	printf "\nbuild.sh - Top level build scritps\n"
-	echo "Valid Options:"
-	echo "  -h  Show help message"
-	echo "  -p <platform> platform, e.g. sun4i, sun4i-lite, sun4i_crane"
-	printf "  -m <module> module\n\n"
-}
-
-while getopts hp:m: OPTION
-do
-	case $OPTION in
-	h) show_help
-	;;
-	p) PLATFORM=$OPTARG
-	;;
-	m) MODULE=$OPTARG
-	;;
-	*) show_help
-	;;
-esac
-done
-
-if [ -z "$PLATFORM" ]; then
-	show_help
-	exit 1
-fi
-
-if [ -z "$MODULE" ]; then
-	MODULE="all"
-fi
-
-if [ -x ./scripts/build_${PLATFORM}.sh ]; then
-	./scripts/build_${PLATFORM}.sh $MODULE
-else
-	printf "\nERROR: Invalid Platform\n"
-	show_help
-	exit 1
-fi
-
-
-
+export ARCH=arm
+export PATH=$PATH:/usr/local/x-tools-armv7h/x-tools7h/arm-unknown-linux-gnueabihf/bin
+export CROSS_COMPILE=arm-unknown-linux-gnueabihf-
+#export CROSS_COMPILE=arm-none-eabi-
+export INSTALL_MOD_PATH=./modules_fw
+MAKE="make"
+#$MAKE menuconfig
+$MAKE -j8
+$MAKE uImage
+$MAKE modules
+rm -rf $INSTALL_MOD_PATH/lib/modules
+$MAKE modules_install

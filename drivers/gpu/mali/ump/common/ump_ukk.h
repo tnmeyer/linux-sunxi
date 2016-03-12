@@ -1,9 +1,9 @@
 /*
- * Copyright (C) 2010-2012 ARM Limited. All rights reserved.
- *
+ * Copyright (C) 2010-2013 ARM Limited. All rights reserved.
+ * 
  * This program is free software and is provided to you under the terms of the GNU General Public License version 2
  * as published by the Free Software Foundation, and any use by you of this program is subject to the terms of such GNU licence.
- *
+ * 
  * A copy of the licence is included with the program, and can also be obtained from Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
@@ -35,6 +35,8 @@ _mali_osk_errcode_t _ump_ukk_allocate( _ump_uk_allocate_s *user_interaction );
 _mali_osk_errcode_t _ump_ukk_release( _ump_uk_release_s *release_info );
 
 _mali_osk_errcode_t _ump_ukk_size_get( _ump_uk_size_get_s *user_interaction );
+
+_mali_osk_errcode_t _ump_ukk_phys_addr_get( _ump_uk_phys_addr_get_s *user_interaction );
 
 _mali_osk_errcode_t _ump_ukk_map_mem( _ump_uk_map_mem_s *args );
 

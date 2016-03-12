@@ -37,7 +37,7 @@
 #define CPUFREQ_ERR(format,args...)   pr_err("[cpu_freq] ERR:"format,##args)
 
 
-#define SUNXI_CPUFREQ_MAX       (1008000000)    /* config the maximum frequency of sunxi core */
+#define SUNXI_CPUFREQ_MAX       (1400000000)    /* config the maximum frequency of sunxi core */
 #define SUNXI_CPUFREQ_MIN       (60000000)      /* config the minimum frequency of sunxi core */
 #define SUNXI_FREQTRANS_LATENCY (2000000)       /* config the transition latency, based on ns */
 

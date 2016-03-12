@@ -14,7 +14,8 @@ config WEXT_SPY
 	bool
 
 config WEXT_PRIV
-	bool
+	bool "enable WEXT_PRIV"
+	depends on WEXT_CORE
 
 config CFG80211
 	tristate "cfg80211 - wireless configuration API"

@@ -1,9 +1,9 @@
 /*
- * Copyright (C) 2010-2012 ARM Limited. All rights reserved.
- *
+ * Copyright (C) 2010-2013 ARM Limited. All rights reserved.
+ * 
  * This program is free software and is provided to you under the terms of the GNU General Public License version 2
  * as published by the Free Software Foundation, and any use by you of this program is subject to the terms of such GNU licence.
- *
+ * 
  * A copy of the licence is included with the program, and can also be obtained from Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
@@ -120,6 +120,46 @@ int ump_size_get_wrapper(u32 __user * argument, struct ump_session_data  * sessi
 
 	user_interaction.ctx = (void *) session_data;
 	err = _ump_ukk_size_get( &user_interaction );
+	if( _MALI_OSK_ERR_OK != err )
+	{
+		MSG_ERR(("_ump_ukk_size_get() failed in ump_ioctl_size_get()\n"));
+		return map_errcode(err);
+	}
+
+	user_interaction.ctx = NULL;
+
+	if (0 != copy_to_user(argument, &user_interaction, sizeof(user_interaction)))
+	{
+		MSG_ERR(("copy_to_user() failed in ump_ioctl_size_get()\n"));
+		return -EFAULT;
+	}
+
+	return 0; /* success */
+}
+
+/*
+ * IOCTL operation; Return physical address for specified UMP memory.
+ */
+int ump_phys_addr_get_wrapper(u32 __user * argument, struct ump_session_data  * session_data)
+{
+	_ump_uk_phys_addr_get_s user_interaction;
+	_mali_osk_errcode_t err;
+
+	/* Sanity check input parameters */
+	if (NULL == argument || NULL == session_data)
+	{
+		MSG_ERR(("NULL parameter in ump_ioctl_size_get()\n"));
+		return -ENOTTY;
+	}
+
+	if (0 != copy_from_user(&user_interaction, argument, sizeof(user_interaction)))
+	{
+		MSG_ERR(("copy_from_user() in ump_ioctl_size_get()\n"));
+		return -EFAULT;
+	}
+
+	user_interaction.ctx = (void *) session_data;
+	err = _ump_ukk_phys_addr_get( &user_interaction );
 	if( _MALI_OSK_ERR_OK != err )
 	{
 		MSG_ERR(("_ump_ukk_size_get() failed in ump_ioctl_size_get()\n"));

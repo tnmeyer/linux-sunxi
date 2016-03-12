@@ -1,12 +1,14 @@
 /*
- * Copyright (C) 2010-2012 ARM Limited. All rights reserved.
- *
+ * Copyright (C) 2010-2013 ARM Limited. All rights reserved.
+ * 
  * This program is free software and is provided to you under the terms of the GNU General Public License version 2
  * as published by the Free Software Foundation, and any use by you of this program is subject to the terms of such GNU licence.
- *
+ * 
  * A copy of the licence is included with the program, and can also be obtained from Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
+#include <asm/memory.h>
+#include <mach/memory.h>
 
 #include "mali_osk.h"
 #include "mali_osk_list.h"
@@ -14,7 +16,6 @@
 #include "ump_uk_types.h"
 #include "ump_kernel_interface.h"
 #include "ump_kernel_common.h"
-
 
 
 /* ---------------- UMP kernel space API functions follows ---------------- */
@@ -291,6 +292,30 @@ _mali_osk_errcode_t _ump_ukk_size_get( _ump_uk_size_get_s *user_interaction )
 	return ret;
 }
 
+_mali_osk_errcode_t _ump_ukk_phys_addr_get( _ump_uk_phys_addr_get_s *user_interaction )
+{
+	ump_dd_mem * mem;
+	_mali_osk_errcode_t ret = _MALI_OSK_ERR_FAULT;
+
+	DEBUG_ASSERT_POINTER( user_interaction );
+
+	/* We lock the mappings so things don't get removed while we are looking for the memory */
+	_mali_osk_lock_wait(device.secure_id_map_lock, _MALI_OSK_LOCKMODE_RW);
+	if (0 == ump_descriptor_mapping_get(device.secure_id_map, (int)user_interaction->secure_id, (void**)&mem))
+	{
+		user_interaction->phys_addr = __phys_to_bus(mem->block_array[0].addr);
+		DBG_MSG(4, ("Returning physical address. ID: %u, phys_addr: 0x%x ", (ump_secure_id)user_interaction->secure_id, (unsigned long)user_interaction->phys_addr));
+		ret = _MALI_OSK_ERR_OK;
+	}
+	else
+	{
+		 user_interaction->phys_addr = 0;
+		DBG_MSG(1, ("Failed to look up mapping in ump_ioctl_phys_addr_get(). ID: %u\n", (ump_secure_id)user_interaction->secure_id));
+	}
+
+	_mali_osk_lock_signal(device.secure_id_map_lock, _MALI_OSK_LOCKMODE_RW);
+	return ret;
+}
 
 
 void _ump_ukk_msync( _ump_uk_msync_s *args )
@@ -503,8 +528,6 @@ void _ump_ukk_lock(_ump_uk_lock_s *args )
 
 	mem->lock_usage = (ump_lock_usage) args->lock_usage;
 
-	/** TODO: TAKE LOCK HERE */
-
 	ump_dd_reference_release(mem);
 }
 
@@ -527,8 +550,6 @@ void _ump_ukk_unlock(_ump_uk_unlock_s *args )
 	DBG_MSG(1, ("UMP[%02u] Unlocking. Old Lock flag:\n", (u32)args->secure_id, (u32) mem->lock_usage ));
 
 	mem->lock_usage = (ump_lock_usage) UMP_NOT_LOCKED;
-
-	/** TODO: RELEASE LOCK HERE */
 
 	ump_dd_reference_release(mem);
 }

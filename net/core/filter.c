@@ -38,7 +38,6 @@
 #include <linux/filter.h>
 #include <linux/reciprocal_div.h>
 #include <linux/ratelimit.h>
-#include <linux/seccomp.h>
 
 /* No hurry in this branch
  *
@@ -170,6 +169,13 @@ unsigned int sk_run_filter(const struct sk_buff *skb,
 			continue;
 		case BPF_S_ALU_OR_K:
 			A |= K;
+			continue;
+		case BPF_S_ANC_ALU_XOR_X:
+		case BPF_S_ALU_XOR_X:
+			A ^= X;
+			continue;
+		case BPF_S_ALU_XOR_K:
+			A ^= K;
 			continue;
 		case BPF_S_ALU_LSH_X:
 			A <<= X;
@@ -357,11 +363,6 @@ load_b:
 				A = 0;
 			continue;
 		}
-#ifdef CONFIG_SECCOMP_FILTER
-		case BPF_S_ANC_SECCOMP_LD_W:
-			A = seccomp_bpf_load(fentry->k);
-			continue;
-#endif
 		default:
 			WARN_RATELIMIT(1, "Unknown code:%u jt:%u tf:%u k:%u\n",
 				       fentry->code, fentry->jt,
@@ -466,6 +467,8 @@ int sk_chk_filter(struct sock_filter *filter, unsigned int flen)
 		[BPF_ALU|BPF_AND|BPF_X]  = BPF_S_ALU_AND_X,
 		[BPF_ALU|BPF_OR|BPF_K]   = BPF_S_ALU_OR_K,
 		[BPF_ALU|BPF_OR|BPF_X]   = BPF_S_ALU_OR_X,
+		[BPF_ALU|BPF_XOR|BPF_K]  = BPF_S_ALU_XOR_K,
+		[BPF_ALU|BPF_XOR|BPF_X]  = BPF_S_ALU_XOR_X,
 		[BPF_ALU|BPF_LSH|BPF_K]  = BPF_S_ALU_LSH_K,
 		[BPF_ALU|BPF_LSH|BPF_X]  = BPF_S_ALU_LSH_X,
 		[BPF_ALU|BPF_RSH|BPF_K]  = BPF_S_ALU_RSH_K,
@@ -571,6 +574,7 @@ int sk_chk_filter(struct sock_filter *filter, unsigned int flen)
 			ANCILLARY(HATYPE);
 			ANCILLARY(RXHASH);
 			ANCILLARY(CPU);
+			ANCILLARY(ALU_XOR_X);
 			}
 		}
 		ftest->code = code;

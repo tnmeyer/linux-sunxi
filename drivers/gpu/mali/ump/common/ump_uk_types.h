@@ -1,9 +1,9 @@
 /*
- * Copyright (C) 2010, 2012 ARM Limited. All rights reserved.
- *
+ * Copyright (C) 2010, 2012-2013 ARM Limited. All rights reserved.
+ * 
  * This program is free software and is provided to you under the terms of the GNU General Public License version 2
  * as published by the Free Software Foundation, and any use by you of this program is subject to the terms of such GNU licence.
- *
+ * 
  * A copy of the licence is included with the program, and can also be obtained from Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
@@ -49,6 +49,7 @@ typedef enum
 	_UMP_IOC_SWITCH_HW_USAGE,
 	_UMP_IOC_LOCK,
 	_UMP_IOC_UNLOCK,
+	_UMP_IOC_PHYS_ADDR_GET,
 }_ump_uk_functions;
 
 typedef enum
@@ -116,6 +117,16 @@ typedef struct _ump_uk_size_get_s
 	u32 secure_id;                          /**< Input to DD */
 	u32 size;                               /**< Returned size; output */
 } _ump_uk_size_get_s;
+
+/**
+ * PHYS_ADDR_GET ([in] u32 secure_id, [out]phys_addr )
+ */
+typedef struct _ump_uk_phys_addr_get_s
+{
+	void *ctx;                              /**< [in,out] user-kernel context (trashed on output) */
+	u32 secure_id;                          /**< Input to DD */
+	void *phys_addr;                        /**< Returned physical address; output */
+} _ump_uk_phys_addr_get_s;
 
 /**
  * Release ([in] u32 secure_id)

@@ -1,9 +1,9 @@
 /*
- * Copyright (C) 2010 ARM Limited. All rights reserved.
- *
+ * Copyright (C) 2010, 2013 ARM Limited. All rights reserved.
+ * 
  * This program is free software and is provided to you under the terms of the GNU General Public License version 2
  * as published by the Free Software Foundation, and any use by you of this program is subject to the terms of such GNU licence.
- *
+ * 
  * A copy of the licence is included with the program, and can also be obtained from Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
@@ -11,17 +11,18 @@
 #include <linux/module.h>            /* kernel module definitions */
 #include <linux/ioport.h>            /* request_mem_region */
 
-#include "config.h"             /* Configuration for current platform. The symlink for arch is set by Makefile */
+#include "arch/config.h"             /* Configuration for current platform. The symlink for arch is set by Makefile */
 
 #include "ump_osk.h"
 #include "ump_kernel_common.h"
 #include "ump_kernel_memory_backend_os.h"
 #include "ump_kernel_memory_backend_dedicated.h"
+#include "ump_kernel_memory_backend_cma.h"
 
 /* Configure which dynamic memory allocator to use */
 int ump_backend = ARCH_UMP_BACKEND_DEFAULT;
 module_param(ump_backend, int, S_IRUGO); /* r--r--r-- */
-MODULE_PARM_DESC(ump_backend, "0 = dedicated memory backend (default), 1 = OS memory backend");
+MODULE_PARM_DESC(ump_backend, "0 = dedicated memory backend (default), 1 = OS memory backend, 2 = CMA based backend");
 
 /* The base address of the memory block for the dedicated memory backend */
 unsigned int ump_memory_address = ARCH_UMP_MEMORY_ADDRESS_DEFAULT;
@@ -55,6 +56,11 @@ ump_memory_backend* ump_memory_backend_create ( void )
 	{
 		DBG_MSG(2, ("Using OS memory backend, allocation limit: %d\n", ump_memory_size));
 		backend = ump_os_memory_backend_create(ump_memory_size);
+	}
+	else if (2 == ump_backend)
+	{
+		DBG_MSG(2, ("Using CMA memory backend, allocation limit: %d\n", ump_memory_size));
+		backend = ump_cma_memory_backend_create(ump_memory_size);	  
 	}
 
 	return backend;

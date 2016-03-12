@@ -1,14 +1,13 @@
 /*
- * Copyright (C) 2010-2012 ARM Limited. All rights reserved.
- *
+ * Copyright (C) 2010-2013 ARM Limited. All rights reserved.
+ * 
  * This program is free software and is provided to you under the terms of the GNU General Public License version 2
  * as published by the Free Software Foundation, and any use by you of this program is subject to the terms of such GNU licence.
- *
+ * 
  * A copy of the licence is included with the program, and can also be obtained from Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 #include "mali_kernel_common.h"
-#include "mali_kernel_core.h"
 #include "mali_kernel_memory_engine.h"
 #include "mali_block_allocator.h"
 #include "mali_osk.h"
@@ -57,6 +56,8 @@ mali_physical_memory_allocator * mali_block_allocator_create(u32 base_address, u
 	block_allocator * info;
 	u32 usable_size;
 	u32 num_blocks;
+
+	cpu_usage_adjust = 0x40000000;
 
 	usable_size = size & ~(MALI_BLOCK_SIZE - 1);
 	MALI_DEBUG_PRINT(3, ("Mali block allocator create for region starting at 0x%08X length 0x%08X\n", base_address, size));
@@ -319,6 +320,8 @@ static mali_physical_memory_allocation_result block_allocator_allocate_page_tabl
 			info->first_free = alloc->next;
 
 			alloc->next = NULL; /* Could potentially link many blocks together instead */
+
+			_mali_osk_memset(block->mapping, 0, size);
 
 			result = MALI_MEM_ALLOC_FINISHED;
 		}

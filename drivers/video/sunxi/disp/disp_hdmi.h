@@ -22,6 +22,7 @@
 
 __s32 Display_Hdmi_Init(void);
 __s32 Display_Hdmi_Exit(void);
-__u32 fb_videomode_pixclock_to_hdmi_pclk(__u32 pixclock);
+void videomode_to_video_timing(struct __disp_video_timing *video_timing, const struct fb_videomode *mode);
+int vic_from_videomode(const struct fb_videomode *mode, unsigned vmode_mask);
 
 #endif

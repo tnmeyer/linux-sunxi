@@ -48,6 +48,8 @@ struct rtable {
 	/* Lookup key. */
 	__be32			rt_key_dst;
 	__be32			rt_key_src;
+	__be32			rt_key_lsrc;
+	__be32			rt_key_gw;
 
 	int			rt_genid;
 	unsigned		rt_flags;
@@ -60,7 +62,6 @@ struct rtable {
 	int			rt_iif;
 	int			rt_oif;
 	__u32			rt_mark;
-	uid_t			rt_uid;
 
 	/* Info on neighbour */
 	__be32			rt_gateway;
@@ -147,7 +148,7 @@ static inline struct rtable *ip_route_output_ports(struct net *net, struct flowi
 	flowi4_init_output(fl4, oif, sk ? sk->sk_mark : 0, tos,
 			   RT_SCOPE_UNIVERSE, proto,
 			   sk ? inet_sk_flowi_flags(sk) : 0,
-			   daddr, saddr, dport, sport, sk ? sock_i_uid(sk) : 0);
+			   daddr, saddr, dport, sport);
 	if (sk)
 		security_sk_classify_flow(sk, flowi4_to_flowi(fl4));
 	return ip_route_output_flow(net, fl4, sk);
@@ -192,6 +193,7 @@ extern void		ip_rt_multicast_event(struct in_device *);
 extern int		ip_rt_ioctl(struct net *, unsigned int cmd, void __user *arg);
 extern void		ip_rt_get_source(u8 *src, struct sk_buff *skb, struct rtable *rt);
 extern int		ip_rt_dump(struct sk_buff *skb,  struct netlink_callback *cb);
+extern int		ip_route_input_lookup(struct sk_buff*, __be32 dst, __be32 src, u8 tos, struct net_device *devin, __be32 lsrc);
 
 struct in_ifaddr;
 extern void fib_add_ifaddr(struct in_ifaddr *);
@@ -251,8 +253,7 @@ static inline void ip_route_connect_init(struct flowi4 *fl4, __be32 dst, __be32 
 		flow_flags |= FLOWI_FLAG_CAN_SLEEP;
 
 	flowi4_init_output(fl4, oif, sk->sk_mark, tos, RT_SCOPE_UNIVERSE,
-			   protocol, flow_flags, dst, src, dport, sport,
-			   sock_i_uid(sk));
+			   protocol, flow_flags, dst, src, dport, sport);
 }
 
 static inline struct rtable *ip_route_connect(struct flowi4 *fl4,

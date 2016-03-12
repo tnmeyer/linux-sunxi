@@ -853,7 +853,7 @@ static int cedardev_mmap(struct file *filp, struct vm_area_struct *vma)
         vma->vm_flags |= VM_RESERVED | VM_IO;
 
         /* Select uncached access. */
-        //vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
+        vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
 
         if (remap_pfn_range(vma, vma->vm_start, temp_pfn,
                             vma->vm_end - vma->vm_start, vma->vm_page_prot)) {
@@ -931,7 +931,10 @@ static int __init cedardev_init(void)
 #ifdef CONFIG_CMA
 	/* If having CMA enabled, just rely on CMA for memory allocation */
 	resource_size_t pa;
-	ve_size = 80 * SZ_1M;
+	if (ve_size == 0) {
+		printk("[cedar dev]: ve_mem_reserve=0, using default 4M\n");
+		ve_size = 4 * SZ_1M;
+	}
 	ve_start_virt = dma_alloc_coherent(NULL, ve_size, &pa,
 							GFP_KERNEL | GFP_DMA);
 	if (!ve_start_virt) {

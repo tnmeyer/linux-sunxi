@@ -187,7 +187,7 @@ __s32 BSP_disp_hdmi_set_mode(__u32 sel, __disp_tv_mode_t mode)
 	return DIS_SUCCESS;
 }
 
-__u32 fb_videomode_pixclock_to_hdmi_pclk(__u32 pixclock)
+static __u32 fb_videomode_pixclock_to_hdmi_pclk(__u32 pixclock)
 {
 	/*
 	 * The pixelclock -> picoseconds -> pixelclock conversions we do
@@ -206,11 +206,41 @@ __u32 fb_videomode_pixclock_to_hdmi_pclk(__u32 pixclock)
 	return pclk * 50000;
 }
 
+int vic_from_videomode(const struct fb_videomode *mode, unsigned vmode_mask)
+{
+	int vic;
+	unsigned rfsh_limit;
+
+	for (vic = 1; vic < ARRAY_SIZE(cea_modes); vic++) {
+		/* allow 59 to match 60 and 23 to match 24 */
+		rfsh_limit = (cea_modes[vic].refresh == 24 || cea_modes[vic].refresh == 60) ? 1 : 0;
+
+		if (cea_modes[vic].xres == mode->xres && cea_modes[vic].yres == mode->yres &&
+		    (unsigned)(cea_modes[vic].refresh - mode->refresh) <= rfsh_limit &&
+		    ((cea_modes[vic].vmode ^ mode->vmode) & vmode_mask) == 0) {
+			return vic;
+		}
+	}
+
+	return 0;
+}
+
 void videomode_to_video_timing(struct __disp_video_timing *video_timing,
 		const struct fb_videomode *mode)
 {
+	static struct pclk_override {
+		struct __disp_video_timing video_timing;
+		int pclk;
+	} pclk_override[] = {
+		/*  VIC        PCLK  AVI_PR INPUTX INPUTY HT   HBP  HFP  HPSW  VT  VBP VFP VPSW I  HS VS   override */
+		{ { 0, 146250000, 0, 1680, 1050, 2240, 456, 104, 176, 1089, 36,  3, 6,  0, 0, 1 }, 146000000 },
+		{ { 0,  83500000, 0, 1280,  800, 1680, 328,  72, 128,  831, 28,  3, 6,  0, 0, 1 },  83250000 },
+		{ { 0,  83500000, 0, 1280,  800, 1680, 328,  72, 128,  831, 21, 10, 6,  0, 1, 1 },  83250000 },
+	};
+
+	int i;
+
 	memset(video_timing, 0, sizeof(struct __disp_video_timing));
-	video_timing->VIC = 511;
 	video_timing->PCLK =
 		fb_videomode_pixclock_to_hdmi_pclk(mode->pixclock);
 	video_timing->AVI_PR = 0;
@@ -226,8 +256,20 @@ void videomode_to_video_timing(struct __disp_video_timing *video_timing,
 	video_timing->VBP = mode->upper_margin + mode->vsync_len;
 	video_timing->VFP = mode->lower_margin;
 	video_timing->VPSW = mode->vsync_len;
-	if (mode->vmode & FB_VMODE_INTERLACED)
+
+	if (mode->vmode & FB_VMODE_INTERLACED) {
 		video_timing->I = true;
+
+		video_timing->VBP /= 2;
+		video_timing->VFP /= 2;
+		video_timing->VPSW /= 2;
+
+		if ((video_timing->HT * (video_timing->VT + 1) * (mode->refresh/2)) == video_timing->PCLK)
+			video_timing->VT++;
+
+		if (mode->xres == 720 && (mode->yres == 576 || mode->yres == 480))
+			video_timing->AVI_PR = 1;
+	}
 
 	if (mode->sync & FB_SYNC_HOR_HIGH_ACT)
 		video_timing->HSYNC = true;
@@ -235,6 +277,14 @@ void videomode_to_video_timing(struct __disp_video_timing *video_timing,
 	if (mode->sync & FB_SYNC_VERT_HIGH_ACT)
 		video_timing->VSYNC = true;
 
+	for (i = 0; i < ARRAY_SIZE(pclk_override); i++) {
+		if (memcmp(video_timing, &pclk_override[i].video_timing, sizeof(*video_timing)) == 0) {
+			video_timing->PCLK = pclk_override[i].pclk;
+			break;
+		}
+	}
+
+	video_timing->VIC = vic_from_videomode(mode, FB_VMODE_MASK);
 }
 
 __s32 BSP_disp_set_videomode(__u32 sel, const struct fb_videomode *mode)
@@ -272,7 +322,11 @@ __s32 BSP_disp_set_videomode(__u32 sel, const struct fb_videomode *mode)
 		goto failure;
 
 	gdisp.screen[sel].hdmi_mode = DISP_TV_MODE_EDID;
-	gdisp.screen[sel].b_out_interlace = new_video_timing->I;
+
+	if (gdisp.screen[sel].b_out_interlace != new_video_timing->I) {
+	      gdisp.screen[sel].b_out_interlace = new_video_timing->I;
+	      Disp_set_out_interlace(sel);
+	}
 
 	kfree(old_video_timing);
 	kfree(new_video_timing);

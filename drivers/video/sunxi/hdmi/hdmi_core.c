@@ -63,7 +63,7 @@ struct __disp_video_timing video_timing[] = {
 	{ HDMI720P_60_3D_FP,  148500000,  0,  1280, 1440, 1650, 260, 110, 40,  750, 25,  5,  5, 0,  1,  1 },
 	{ HDMI1360_768_60,     85500000,  0,  1360,  768, 1792, 368, 64, 112,  795, 24,  3,  6, 0,  1,  1 },
 	{ HDMI1280_1024_60,   108000000,  0,  1280, 1024, 1688, 360, 48, 112, 1066, 41,  1,  3, 0,  1,  1 },
-	{ HDMI_EDID, } /* Entry reserved for EDID detected preferred timing */
+	{ 0 } /* Entry reserved for EDID detected preferred timing */
 };
 
 const int video_timing_edid = ARRAY_SIZE(video_timing) - 1;
@@ -217,9 +217,12 @@ __s32 Hpd_Check(void)
 
 __s32 get_video_info(__s32 vic)
 {
-	__s32 i, count;
-	count = sizeof(video_timing);
-	for (i = 0; i < count; i++)
+	__s32 i;
+
+	if (vic == HDMI_EDID)
+		return video_timing_edid;
+	
+	for (i = 0; i < video_timing_edid; i++)
 		if (vic == video_timing[i].VIC)
 			return i;
 
@@ -291,16 +294,17 @@ static __s32 get_audio_info(__s32 sample_rate)
 
 __s32 video_config(__s32 vic)
 {
-
 	__s32 vic_tab, clk_div, reg_val, dw = 0;
+	const struct __disp_video_timing *timing;
 
-	__inf("video_config, vic:%d\n", vic);
+	__inf("video_config, video_mode:%d\n", vic);
 
 	vic_tab = get_video_info(vic);
 	if (vic_tab == -1)
 		return 0;
-	else
-		video_mode = vic;
+
+	timing = &video_timing[vic_tab];
+	vic = timing->VIC;
 
 	if ((vic == HDMI1440_480I) || (vic == HDMI1440_576I))
 		dw = 1; /* Double Width */
@@ -314,42 +318,39 @@ __s32 video_config(__s32 vic)
 	reg_val = 0x00000000;
 	if (dw)
 		reg_val |= 0x00000001; /* repetition */
-	if (video_timing[vic_tab].I)
+	if (timing->I)
 		reg_val |= 0x00000010; /* interlace */
 	writel(reg_val, HDMI_VIDEO_CTRL);
 
 	/* active H */
-	writew((video_timing[vic_tab].INPUTX << dw) - 1, HDMI_VIDEO_H);
+	writew((timing->INPUTX << dw) - 1, HDMI_VIDEO_H);
 	/* active HBP */
-	writew((video_timing[vic_tab].HBP << dw) - 1, HDMI_VIDEO_HBP);
+	writew((timing->HBP << dw) - 1, HDMI_VIDEO_HBP);
 	/* active HFP */
-	writew((video_timing[vic_tab].HFP << dw) - 1, HDMI_VIDEO_HFP);
+	writew((timing->HFP << dw) - 1, HDMI_VIDEO_HFP);
 	/* active HSPW */
-	writew((video_timing[vic_tab].HPSW << dw) - 1, HDMI_VIDEO_HSPW);
+	writew((timing->HPSW << dw) - 1, HDMI_VIDEO_HSPW);
 
 	/* set active V */
 	if ((vic == HDMI1080P_24_3D_FP) || (vic == HDMI720P_50_3D_FP) ||
 	    (vic == HDMI720P_60_3D_FP))
-		writew(video_timing[vic_tab].INPUTY +
-			     video_timing[vic_tab].VBP +
-			     video_timing[vic_tab].VFP - 1,
-			     HDMI_VIDEO_V);
-	else if (video_timing[vic_tab].I)
-		writew((video_timing[vic_tab].INPUTY / 2) - 1, HDMI_VIDEO_V);
+		writew(timing->INPUTY + timing->VBP + timing->VFP - 1, HDMI_VIDEO_V);
+	else if (timing->I)
+		writew((timing->INPUTY / 2) - 1, HDMI_VIDEO_V);
 	else
-		writew(video_timing[vic_tab].INPUTY - 1, HDMI_VIDEO_V);
+		writew(timing->INPUTY - 1, HDMI_VIDEO_V);
 
 	/* active VBP */
-	writew(video_timing[vic_tab].VBP - 1, HDMI_VIDEO_VBP);
+	writew(timing->VBP - 1, HDMI_VIDEO_VBP);
 	/* active VFP */
-	writew(video_timing[vic_tab].VFP - 1, HDMI_VIDEO_VFP);
+	writew(timing->VFP - 1, HDMI_VIDEO_VFP);
 	/* active VSPW */
-	writew(video_timing[vic_tab].VPSW - 1, HDMI_VIDEO_VPSW);
+	writew(timing->VPSW - 1, HDMI_VIDEO_VPSW);
 
 	reg_val = 0;
-	if (video_timing[vic_tab].HSYNC)
+	if (timing->HSYNC)
 		reg_val |= 0x01; /* Positive Hsync */
-	if (video_timing[vic_tab].VSYNC)
+	if (timing->VSYNC)
 		reg_val |= 0x02; /* Positive Vsync */
 	writew(reg_val, HDMI_VIDEO_POLARITY);
 
@@ -365,12 +366,12 @@ __s32 video_config(__s32 vic)
 #else
 	writeb(0x12, HDMI_AVI_INFOFRAME + 4); /* Data Byte 1: RGB */
 #endif
-	if (video_timing[vic_tab].PCLK <= 27000000)
+	if (timing->PCLK <= 27000000)
 		reg_val = 0x40;  /* SD-modes, assume ITU601 colorspace */
 	else
 		reg_val = 0x80;  /* HD-modes, assume ITU709 colorspace */
-	if (video_timing[vic_tab].INPUTX * 100 /
-			video_timing[vic_tab].INPUTY < 156)
+	if (timing->INPUTX * 100 /
+			timing->INPUTY < 156)
 		reg_val |= 0x18; /* 4 : 3 */
 	else
 		reg_val |= 0x28; /* 16 : 9 */
@@ -378,12 +379,12 @@ __s32 video_config(__s32 vic)
 #ifdef YUV_COLORSPACE /* Fix me */
 	writeb(0x80, HDMI_AVI_INFOFRAME + 6);
 #else
-	writeb(0x88, HDMI_AVI_INFOFRAME + 6);
+	writeb((timing->VIC) ? 0x88 : 0x84, HDMI_AVI_INFOFRAME + 6);
 #endif
-	writeb((video_timing[vic_tab].VIC >= HDMI_NON_CEA861D_START) ?
-			   0 : video_timing[vic_tab].VIC,
+	writeb((timing->VIC >= HDMI_NON_CEA861D_START) ?
+			   0 : timing->VIC,
 			   HDMI_AVI_INFOFRAME + 7);
-	writeb(video_timing[vic_tab].AVI_PR, HDMI_AVI_INFOFRAME + 8);
+	writeb(timing->AVI_PR, HDMI_AVI_INFOFRAME + 8);
 	writeb(0x00, HDMI_AVI_INFOFRAME + 9);
 	writeb(0x00, HDMI_AVI_INFOFRAME + 10);
 	writeb(0x00, HDMI_AVI_INFOFRAME + 11);
@@ -470,10 +471,10 @@ __s32 video_config(__s32 vic)
 
 	/* hdmi pll setting */
 	if ((vic == HDMI1440_480I) || (vic == HDMI1440_576I)) {
-		clk_div = hdmi_clk / video_timing[vic_tab].PCLK;
+		clk_div = hdmi_clk / timing->PCLK;
 		clk_div /= 2;
 	} else {
-		clk_div = hdmi_clk / video_timing[vic_tab].PCLK;
+		clk_div = hdmi_clk / timing->PCLK;
 	}
 	clk_div &= 0x0f;
 
