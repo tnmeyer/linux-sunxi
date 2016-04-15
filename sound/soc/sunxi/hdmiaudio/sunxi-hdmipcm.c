@@ -215,8 +215,8 @@ static int sunxi_pcm_prepare(struct snd_pcm_substream *substream)
 
 	/* flush the DMA channel */
 	prtd->dma_loaded = 0;
-	if (sunxi_dma_flush(prtd->params) == 0)
-		prtd->dma_pos = prtd->dma_start;
+	sunxi_dma_flush(prtd->params);
+	prtd->dma_pos = prtd->dma_start;
 
 	/* enqueue dma buffers */
 	sunxi_pcm_enqueue(substream);
